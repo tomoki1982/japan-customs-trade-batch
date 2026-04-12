@@ -1,0 +1,47 @@
+name: Update Japan Customs Trade Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      year_month:
+        description: "対象年月 (YYYY-MM)。未指定時は前月"
+        required: false
+        type: string
+      dry_run:
+        description: "dry-run で実行する"
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 21 17 * *"
+
+jobs:
+  update-trade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run batch
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          INPUT_YEAR_MONTH: ${{ github.event.inputs.year_month }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          args=()
+          if [ -n "$INPUT_YEAR_MONTH" ]; then
+            args+=(--year-month "$INPUT_YEAR_MONTH")
+          fi
+          if [ "$INPUT_DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          python src/main.py "${args[@]}"
