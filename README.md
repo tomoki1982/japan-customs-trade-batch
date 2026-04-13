@@ -130,6 +130,7 @@ python src/main.py --year-month 2026-03 --dry-run
 - `円/KG`: `unit_multiplier = 1`
 - `円/MT`: `unit_multiplier = 1000`
 - `円/KL`: 税関データの第2数量単位が `KL` のときだけ `unit_multiplier = 1`
+- 税関データの第2数量単位が `KG` の場合は、`master_codes.csv` の設定に関係なく `円/KG` として計算します
 - それ以外は warning を出して `calc_unit_price.csv` には保存しません
 
 計算式:

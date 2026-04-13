@@ -215,7 +215,8 @@ def build_calc_unit_price_record(raw_record: dict[str, object], warning_messages
         )
         return None
 
-    multiplier = resolve_unit_multiplier(calc_unit_name, quantity_2_unit)
+    effective_calc_unit_name = resolve_calc_unit_name(calc_unit_name, quantity_2_unit)
+    multiplier = resolve_unit_multiplier(effective_calc_unit_name, quantity_2_unit)
     if multiplier is None:
         warning_messages.append(
             "skip calc_unit_price because unit conversion is unsupported: "
@@ -227,6 +228,7 @@ def build_calc_unit_price_record(raw_record: dict[str, object], warning_messages
     record = dict(raw_record)
     record.update(
         {
+            "calc_unit_name": effective_calc_unit_name,
             "unit_multiplier": decimal_to_string(multiplier),
             "unit_price": decimal_to_string(unit_price),
             "formula_note": FORMULA_NOTE,
@@ -291,6 +293,12 @@ def resolve_unit_multiplier(calc_unit_name: str, quantity_2_unit: str) -> Decima
     if calc_unit_name == JP["yen_per_kl"] and quantity_2_unit == "KL":
         return Decimal("1")
     return None
+
+
+def resolve_calc_unit_name(calc_unit_name: str, quantity_2_unit: str) -> str:
+    if quantity_2_unit == "KG":
+        return JP["yen_per_kg"]
+    return calc_unit_name
 
 
 def _make_key(record: dict[str, object], key_fields: list[str]) -> tuple[str, ...]:
