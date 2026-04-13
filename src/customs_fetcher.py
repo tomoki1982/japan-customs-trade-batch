@@ -158,7 +158,7 @@ class CustomsTradeFetcher:
         headers = rows[header_row_index]
         data_rows = rows[header_row_index + 1 :]
         header_mapping = find_header_mapping(headers, CUSTOMS_HEADER_ALIASES)
-        required_fields = ["hs_code", "country_code", "country_name", "import_value", "quantity_2", "quantity_2_unit"]
+        required_fields = ["hs_code", "country_code", "import_value", "quantity_2", "quantity_2_unit"]
         missing = [field for field in required_fields if field not in header_mapping]
         if missing:
             raise RuntimeError(f"customs CSV columns could not be resolved: {', '.join(missing)} ({source_url})")
@@ -181,7 +181,9 @@ class CustomsTradeFetcher:
                 {
                     "hs_code": normalize_hs_code(hs_code),
                     "country_code": self._get_cell(row, header_index, header_mapping["country_code"]).strip(),
-                    "country_name": self._get_cell(row, header_index, header_mapping["country_name"]).strip(),
+                    "country_name": self._get_cell(row, header_index, header_mapping["country_name"]).strip()
+                    if "country_name" in header_mapping
+                    else "",
                     "import_value": "" if import_value is None else str(import_value),
                     "quantity_2": self._get_cell(row, header_index, header_mapping["quantity_2"]).strip(),
                     "quantity_2_unit": self._get_cell(row, header_index, header_mapping["quantity_2_unit"]).strip(),
