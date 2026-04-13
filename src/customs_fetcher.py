@@ -35,12 +35,12 @@ class CustomsTradeFetcher:
         self._session = session or requests.Session()
         self._session.headers.update({"User-Agent": "customs-trade-batch/1.0"})
 
-    def fetch_trade_rows(self, year_month: str, target_hs_codes: list[str]) -> tuple[list[dict[str, str]], list[str]]:
-        month_page_url = self._find_month_page_url(year_month)
+    def fetch_trade_rows(self, year_month: str, target_hs_codes: list[str]) -> tuple[str, list[dict[str, str]], list[str]]:
+        resolved_year_month, month_page_url = self._find_month_page_url(year_month)
         csv_resources = self._find_csv_resources(month_page_url, target_hs_codes)
 
         if not csv_resources:
-            raise RuntimeError(f"no matching CSV resources found for {year_month}")
+            raise RuntimeError(f"no matching CSV resources found for {resolved_year_month}")
 
         rows: list[dict[str, str]] = []
         source_urls: list[str] = []
@@ -51,7 +51,7 @@ class CustomsTradeFetcher:
             rows.extend(parsed_rows)
             source_urls.append(resource.csv_url)
 
-        return rows, source_urls
+        return resolved_year_month, rows, source_urls
 
     def build_country_candidates(self, master_country_codes: list[str]) -> dict[str, set[str]]:
         customs_map = self._fetch_customs_country_code_map()
@@ -74,13 +74,32 @@ class CustomsTradeFetcher:
             candidates[normalized] = items
         return candidates
 
-    def _find_month_page_url(self, year_month: str) -> str:
+    def _find_month_page_url(self, year_month: str) -> tuple[str, str]:
         response = self._session.get(CUSTOMS_DOWNLOAD_INDEX_URL, timeout=60)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        target_label = self._build_month_label(year_month)
-        target_year = year_month.split("-")[0]
+        available_months = self._extract_available_month_pages(soup, response.url)
+        if not available_months:
+            raise RuntimeError("no available month pages found on e-Stat index page")
+
+        if year_month in available_months:
+            return year_month, available_months[year_month]
+
+        fallback_candidates = [month for month in available_months if month <= year_month]
+        if not fallback_candidates:
+            raise RuntimeError(f"month page not found for {year_month}")
+
+        fallback_year_month = max(fallback_candidates)
+        logger.warning(
+            "Requested month %s is not published yet. Falling back to latest available month %s.",
+            year_month,
+            fallback_year_month,
+        )
+        return fallback_year_month, available_months[fallback_year_month]
+
+    def _extract_available_month_pages(self, soup: BeautifulSoup, base_url: str) -> dict[str, str]:
+        available: dict[str, str] = {}
         current_year: str | None = None
 
         for element in soup.select("a, li, span"):
@@ -88,12 +107,21 @@ class CustomsTradeFetcher:
             if re.fullmatch(r"\d{4}", text):
                 current_year = text
                 continue
-            if element.name == "a" and current_year == target_year and text == target_label:
-                href = element.get("href", "")
-                if href:
-                    return urljoin(response.url, href)
+            if element.name != "a" or current_year is None:
+                continue
 
-        raise RuntimeError(f"month page not found for {year_month}")
+            month_number = self._parse_month_label(text)
+            if month_number is None:
+                continue
+
+            href = element.get("href", "")
+            if not href:
+                continue
+
+            year_month = f"{current_year}-{month_number:02d}"
+            available[year_month] = urljoin(base_url, href)
+
+        return available
 
     def _find_csv_resources(self, month_page_url: str, target_hs_codes: list[str]) -> list[CsvResource]:
         response = self._session.get(month_page_url, timeout=60)
@@ -206,6 +234,24 @@ class CustomsTradeFetcher:
     def _build_month_label(year_month: str) -> str:
         month = int(year_month.split("-")[1])
         return ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."][month - 1]
+
+    @staticmethod
+    def _parse_month_label(label: str) -> int | None:
+        month_map = {
+            "Jan.": 1,
+            "Feb.": 2,
+            "Mar.": 3,
+            "Apr.": 4,
+            "May": 5,
+            "Jun.": 6,
+            "Jul.": 7,
+            "Aug.": 8,
+            "Sep.": 9,
+            "Oct.": 10,
+            "Nov.": 11,
+            "Dec.": 12,
+        }
+        return month_map.get(label)
 
     @staticmethod
     def _extract_nearby_title(link: object) -> str:

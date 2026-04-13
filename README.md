@@ -155,6 +155,11 @@ unit_price = import_value_yen * unit_multiplier / quantity_2
 
 Secrets は不要です。
 
+補足:
+
+- 指定した年月のファイルが e-Stat で未公開の場合は、その年月以前で直近の公開月に自動フォールバックします
+- 例: 2026-04-14 時点で `2026-03` が未公開なら `2026-02` を取得します
+
 ## Google Sheets 設定
 
 Google Sheets 側では `IMPORTDATA()` で GitHub の raw CSV を読み込みます。

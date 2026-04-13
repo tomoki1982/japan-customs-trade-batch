@@ -58,10 +58,13 @@ def main() -> None:
     logger.info("master_codes records: %s", len(master_records))
 
     fetcher = CustomsTradeFetcher()
-    trade_rows, source_urls = fetcher.fetch_trade_rows(
+    resolved_year_month, trade_rows, source_urls = fetcher.fetch_trade_rows(
         year_month=year_month,
         target_hs_codes=[record.hs_code for record in master_records],
     )
+    if resolved_year_month != year_month:
+        logger.warning("Requested %s but using latest published month %s", year_month, resolved_year_month)
+    year_month = resolved_year_month
     logger.info("customs rows fetched: %s", len(trade_rows))
 
     country_candidates = fetcher.build_country_candidates([record.country_code for record in master_records])
