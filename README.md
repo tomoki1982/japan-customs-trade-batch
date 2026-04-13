@@ -202,13 +202,14 @@ Google Sheets 側では `IMPORTDATA()` で GitHub の raw CSV を読み込みま
    - [Commodity by Country Import](https://www.e-stat.go.jp/en/stat-search/files?cycle=1&cycle_facet=cycle&data=1&layout=datalist&metadata=1&page=1&tclass1=000001013180&tclass2=000001013182&tclass3val=0&toukei=00350300&tstat=000001013141)
 2. 月次ファイルは章ごとの CSV に分かれているため、対象 HS コードの先頭 2 桁から必要章だけ取得します。
 3. 金額は e-Stat の説明上 `1,000YEN` 単位のため、コード内では `import_value_yen` として扱うために 1000 倍しています。
-4. CSV の列名は日本語/英語や表記ゆれがある前提で、代表的な別名を吸収する実装にしています。
-5. `country_code` は `config/master_codes.csv` では ISO Alpha-2 を推奨します。
+4. 月次値は累計列 (`Value-Year`, `Quantity2-Year`) ではなく、対象月の月次列 (`Value-February`, `Quantity2-February` など) を使う前提です。
+5. CSV の列名は日本語/英語や表記ゆれがある前提で、代表的な別名を吸収する実装にしています。
+6. `country_code` は `config/master_codes.csv` では ISO Alpha-2 を推奨します。
    - 内部では財務省の国コード表から Customs 独自の数値コードを解決するようにしています。
    - [Country code list](https://www.customs.go.jp/toukei/sankou/code/country_e.htm)
-6. 数量単位は FAQ の略号説明を前提に `KG` `MT` `KL` 等を扱います。
+7. 数量単位は FAQ の略号説明を前提に `KG` `MT` `KL` 等を扱います。
    - [数量単位の略号](https://www.customs.go.jp/toukei/sankou/howto/faq.htm)
-7. 税関 CSV の実列名が大きく変わった場合は `src/transformers.py` のヘッダー別名定義を更新してください。
+8. 税関 CSV の実列名が大きく変わった場合は `src/transformers.py` や `src/customs_fetcher.py` のヘッダー解釈を更新してください。
 
 ## 拡張方針
 

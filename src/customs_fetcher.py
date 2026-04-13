@@ -47,7 +47,7 @@ class CustomsTradeFetcher:
         for resource in csv_resources:
             logger.info("Downloading customs CSV: %s", resource.csv_url)
             csv_text = self._download_text(resource.csv_url)
-            parsed_rows = self._parse_trade_csv(csv_text, resource.csv_url)
+            parsed_rows = self._parse_trade_csv(csv_text, resource.csv_url, resolved_year_month)
             rows.extend(parsed_rows)
             source_urls.append(resource.csv_url)
 
@@ -149,7 +149,7 @@ class CustomsTradeFetcher:
 
         return resources
 
-    def _parse_trade_csv(self, csv_text: str, source_url: str) -> list[dict[str, str]]:
+    def _parse_trade_csv(self, csv_text: str, source_url: str, year_month: str) -> list[dict[str, str]]:
         rows = list(csv.reader(io.StringIO(csv_text)))
         if not rows:
             raise RuntimeError(f"empty CSV: {source_url}")
@@ -158,10 +158,18 @@ class CustomsTradeFetcher:
         headers = rows[header_row_index]
         data_rows = rows[header_row_index + 1 :]
         header_mapping = find_header_mapping(headers, CUSTOMS_HEADER_ALIASES)
-        required_fields = ["hs_code", "country_code", "import_value", "quantity_2", "quantity_2_unit"]
+        required_fields = ["hs_code", "country_code", "quantity_2_unit"]
         missing = [field for field in required_fields if field not in header_mapping]
         if missing:
             raise RuntimeError(f"customs CSV columns could not be resolved: {', '.join(missing)} ({source_url})")
+
+        month_number = int(year_month.split("-")[1])
+        value_header = self._resolve_month_value_header(headers, month_number)
+        quantity_2_header = self._resolve_month_quantity2_header(headers, month_number)
+        if value_header is None or quantity_2_header is None:
+            raise RuntimeError(
+                f"monthly value/quantity columns could not be resolved for {year_month} ({source_url})"
+            )
 
         header_index = {header: idx for idx, header in enumerate(headers)}
         parsed: list[dict[str, str]] = []
@@ -173,7 +181,7 @@ class CustomsTradeFetcher:
             if len(normalize_hs_code(hs_code)) != 9:
                 continue
 
-            import_value = parse_decimal(self._get_cell(row, header_index, header_mapping["import_value"]))
+            import_value = parse_decimal(self._get_cell(row, header_index, value_header))
             if import_value is not None:
                 import_value *= 1000
 
@@ -185,7 +193,7 @@ class CustomsTradeFetcher:
                     if "country_name" in header_mapping
                     else "",
                     "import_value": "" if import_value is None else str(import_value),
-                    "quantity_2": self._get_cell(row, header_index, header_mapping["quantity_2"]).strip(),
+                    "quantity_2": self._get_cell(row, header_index, quantity_2_header).strip(),
                     "quantity_2_unit": self._get_cell(row, header_index, header_mapping["quantity_2_unit"]).strip(),
                 }
             )
@@ -254,6 +262,50 @@ class CustomsTradeFetcher:
             "Dec.": 12,
         }
         return month_map.get(label)
+
+    @staticmethod
+    def _resolve_month_value_header(headers: list[str], month_number: int) -> str | None:
+        month_name = CustomsTradeFetcher._month_name(month_number)
+        aliases = {
+            "target": [
+                f"Value-{month_name}",
+                f"Value-{month_name[:3]}",
+                f"value-{month_name.lower()}",
+                f"value-{month_name[:3].lower()}",
+            ]
+        }
+        return find_header_mapping(headers, aliases).get("target")
+
+    @staticmethod
+    def _resolve_month_quantity2_header(headers: list[str], month_number: int) -> str | None:
+        month_name = CustomsTradeFetcher._month_name(month_number)
+        aliases = {
+            "target": [
+                f"Quantity2-{month_name}",
+                f"Quantity2-{month_name[:3]}",
+                f"quantity2-{month_name.lower()}",
+                f"quantity2-{month_name[:3].lower()}",
+                f"2nd quantity-{month_name.lower()}",
+            ]
+        }
+        return find_header_mapping(headers, aliases).get("target")
+
+    @staticmethod
+    def _month_name(month_number: int) -> str:
+        return [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ][month_number - 1]
 
     @staticmethod
     def _extract_nearby_title(link: object) -> str:
