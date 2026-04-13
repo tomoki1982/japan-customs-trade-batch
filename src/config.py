@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 SOURCE_NAME = "customs_trade_statistics"
-SHEET_MASTER_CODES = "master_codes"
-SHEET_RAW_TRADE = "raw_trade"
-SHEET_CALC_UNIT_PRICE = "calc_unit_price"
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+CONFIG_DIR = ROOT_DIR / "config"
+DATA_DIR = ROOT_DIR / "data"
+
+MASTER_CODES_PATH = CONFIG_DIR / "master_codes.csv"
+RAW_TRADE_PATH = DATA_DIR / "raw_trade.csv"
+CALC_UNIT_PRICE_PATH = DATA_DIR / "calc_unit_price.csv"
 
 CUSTOMS_DOWNLOAD_INDEX_URL = (
     "https://www.e-stat.go.jp/en/stat-search/files"
@@ -66,20 +71,6 @@ MASTER_CODE_REQUIRED_FIELDS = [
 
 @dataclass(frozen=True)
 class AppConfig:
-    spreadsheet_id: str
-    google_service_account_json: str
-
-    @classmethod
-    def from_env(cls) -> "AppConfig":
-        spreadsheet_id = os.environ.get("SPREADSHEET_ID", "").strip()
-        service_account_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
-
-        if not spreadsheet_id:
-            raise ValueError("環境変数 SPREADSHEET_ID が設定されていません。")
-        if not service_account_json:
-            raise ValueError("環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません。")
-
-        return cls(
-            spreadsheet_id=spreadsheet_id,
-            google_service_account_json=service_account_json,
-        )
+    master_codes_path: Path = MASTER_CODES_PATH
+    raw_trade_path: Path = RAW_TRADE_PATH
+    calc_unit_price_path: Path = CALC_UNIT_PRICE_PATH

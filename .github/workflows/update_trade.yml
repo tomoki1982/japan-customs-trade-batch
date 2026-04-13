@@ -4,26 +4,31 @@ on:
   workflow_dispatch:
     inputs:
       year_month:
-        description: "対象年月 (YYYY-MM)。未指定時は前月"
+        description: "Target month (YYYY-MM). Leave blank for previous month."
         required: false
         type: string
       dry_run:
-        description: "dry-run で実行する"
+        description: "Run without updating CSV files"
         required: false
         default: false
         type: boolean
   schedule:
     - cron: "0 21 17 * *"
 
+concurrency:
+  group: update-trade-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
 jobs:
   update-trade:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -32,8 +37,6 @@ jobs:
 
       - name: Run batch
         env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           INPUT_YEAR_MONTH: ${{ github.event.inputs.year_month }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
@@ -45,3 +48,17 @@ jobs:
             args+=(--dry-run)
           fi
           python src/main.py "${args[@]}"
+
+      - name: Commit CSV updates
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/raw_trade.csv
+          git add data/calc_unit_price.csv
+          if git diff --cached --quiet; then
+            echo "No CSV changes to commit."
+            exit 0
+          fi
+          git commit -m "Update customs trade data"
+          git push origin HEAD:main
