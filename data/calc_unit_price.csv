@@ -1,2 +1,2 @@
 ﻿year_month,hs_code,item_name,category,country_name,country_code,import_value_yen,quantity_2,quantity_2_unit,calc_unit_name,unit_multiplier,unit_price,formula_note,source,source_url,fetched_at
-2026-02,270900900,原油,エネルギー,サウジアラビア,SA,385428917000,5123106786,KG,円/KG,1,75.23343414454449359197877942,金額×単位÷第2数量,customs_trade_statistics,https://www.e-stat.go.jp/en/stat-search/file-download?statInfId=000040432026&fileKind=1,2026-04-14T06:51:51.146257+09:00
+2026-02,270900900,原油,エネルギー,サウジアラビア,SA,385428917000,5123106786,KG,円/KG,1,75.23343414454449359197877942,金額×単位÷第2数量,customs_trade_statistics,https://www.e-stat.go.jp/en/stat-search/file-download?statInfId=000040432026&fileKind=1,2026-04-18T06:38:09.200797+09:00
